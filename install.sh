@@ -116,7 +116,7 @@ main() {
   printf '    %sprefix:%s %s\n' "$c_dim" "$c_reset" "$prefix"
 
   tmpdir=$(mktemp -d)
-  trap 'rm -rf "$tmpdir"' EXIT
+  trap "rm -rf '$tmpdir'" EXIT
 
   info "downloading $url"
   curl -fsSL --retry 3 -o "$tmpdir/$asset" "$url" \
@@ -140,16 +140,64 @@ main() {
   ok "installed $bin_path"
 
   case ":$PATH:" in
-    *":$prefix/bin:"*) ;;
+    *":$prefix/bin:"*)
+      ;;
     *)
-      warn "$prefix/bin is not on your PATH"
-      printf '    add this to your shell profile:\n'
-      printf '        export PATH="%s/bin:$PATH"\n' "$prefix"
+      persist_path "$prefix"
       ;;
   esac
 
   printf '\n%sdone.%s try: %s%s --help%s\n' \
     "$c_green" "$c_reset" "$c_bold" "$BIN_NAME" "$c_reset"
+}
+
+pick_rc_file() {
+  local shell_name
+  shell_name=$(basename "${SHELL:-}")
+  case "$shell_name" in
+    zsh)   echo "$HOME/.zshrc" ;;
+    bash)
+      if [ -f "$HOME/.bashrc" ]; then echo "$HOME/.bashrc"
+      elif [ -f "$HOME/.bash_profile" ]; then echo "$HOME/.bash_profile"
+      else echo "$HOME/.bashrc"
+      fi
+      ;;
+    fish)  echo "$HOME/.config/fish/config.fish" ;;
+    *)     echo "" ;;
+  esac
+}
+
+persist_path() {
+  local prefix="$1" rc export_line
+  rc=$(pick_rc_file)
+
+  if [ -z "$rc" ]; then
+    warn "$prefix/bin is not on your PATH"
+    printf '    add this to your shell profile:\n'
+    printf '        export PATH="%s/bin:$PATH"\n' "$prefix"
+    return
+  fi
+
+  case "$rc" in
+    *.fish) export_line="set -gx PATH $prefix/bin \$PATH" ;;
+    *)      export_line="export PATH=\"$prefix/bin:\$PATH\"" ;;
+  esac
+
+  mkdir -p "$(dirname "$rc")"
+  touch "$rc"
+
+  if grep -Fq "$prefix/bin" "$rc" 2>/dev/null; then
+    info "$prefix/bin already referenced in $rc"
+  else
+    {
+      printf '\n# Added by grokimarkdown installer\n'
+      printf '%s\n' "$export_line"
+    } >> "$rc"
+    ok "appended PATH export to $rc"
+  fi
+
+  printf '    to use %s%s%s in this shell, run:\n' "$c_bold" "$BIN_NAME" "$c_reset"
+  printf '        %ssource %s%s\n' "$c_bold" "$rc" "$c_reset"
 }
 
 main "$@"
