@@ -1,0 +1,24 @@
+{
+  "name": "grokimarkdown",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "grokimarkdown": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build --compile --minify src/index.ts --outfile grokimarkdown"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/turndown": "^5.0.6"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "turndown": "^7.2.4"
+  }
+}
